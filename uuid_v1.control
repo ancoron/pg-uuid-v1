@@ -1,0 +1,5 @@
+# Special data type for version 1 UUID's
+comment = 'UUID version 1'
+default_version = '0.1'
+module_pathname = '$libdir/uuid_v1'
+relocatable = true
