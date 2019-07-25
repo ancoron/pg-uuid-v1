@@ -8,6 +8,20 @@ This extension for PostgreSQL provides a new data type `uuid_v1` for
 The tested scenarios where this data type is more efficient than the standard
 UUID are described shortly in the following section.
 
+## Usage
+
+After the extension has been installed (see the Build/Install section), you can
+start using the data type as follows:
+
+```sql
+CREATE EXTENSION uuid_v1;
+
+CREATE TABLE my_log (
+    id uuid_v1 PRIMARY KEY,
+    ...
+);
+```
+
 
 ## Performance compared to standard UUID
 
@@ -16,7 +30,7 @@ behavior much better than as it is the case for the standard [UUID][2] data type
 in PostgreSQL.
 
 
-## INSERT / COPY ... FROM
+### INSERT / COPY ... FROM
 
 First, the parsing of a UUID string input value has been optimized to execute
 ~33% faster than the standard UUID parser does.
@@ -29,7 +43,7 @@ current time). To reflect this fact, the default sort order is no longer tied
 to the byte values of the UUID but to the 60-bit parsed UUID timestamp. This
 has lead to a speed-up of factor 6-7 for internal B-Tree comparison logic.
 
-Another good side effect is that the UUID values can now benefit from the
+Another nice side effect is that the UUID values can now benefit from the
 PostgreSQL B-Tree "fastpath", which optimizes for ever-inceasing index values
 by basically caching the right-most index page. This means that most of the
 time, an INSERT into an indexed talbe column will not need to search for the
@@ -38,18 +52,18 @@ UUID spends ~50% of the time during INSERT's in this index page searching,
 while this should be less than 1% for the data type `uuid_v1`
 
 
-## SELECT / COPY ... TO
+### SELECT / COPY ... TO
 
 When larger numbers of UUID's need to be converted into a string representation
 the performance of the conversion method plays a significant role.
 
-Tests (using COPY) has revealed that the implementation for the `uuid_v1` data
+Testing (using COPY) has revealed that the implementation for the `uuid_v1` data
 type is ~5 times faster compared to the standard UUID output. However, the
 resulting overall performance benefit (e.g. using `COPY` with format `text`) is
 limited to a speedup factor of ~ 1.5 due to unrelated processing in PostgreSQL.
 
 
-## Time-series queries
+### Time-series queries
 
 The `uuid_v1` data type also comes with additional comparison operators. One set
 of operators can be used to efficiently compare `uuid_v1` values to
@@ -126,7 +140,7 @@ SELECT uuid_v1_get_timestamp('b647e96b-862d-11e9-ae2b-db6f0f573554');
 (1 row)
 ```
 
-## uuid_v1_get_clockseq
+### uuid_v1_get_clockseq
 
 The function `uuid_v1_get_clockseq(uuid_v1)` provides direct access to the
 clock sequence value and returns a [`smallint`][6] value, e.g.:
@@ -143,7 +157,7 @@ Please also note that the bits of the variant are not part of the clock
 sequence value in compliance with the standard.
 
 
-## uuid_v1_get_node
+### uuid_v1_get_node
 
 The function `uuid_v1_get_node(uuid_v1)` returns the node value (where it was
 generated initially) as [bytea][5],
@@ -158,7 +172,7 @@ SELECT uuid_v1_get_node('b647e96b-862d-11e9-ae2b-db6f0f573554');
 ```
 
 
-# Build
+## Build
 
 Straight forward but please ensure that you have the necessary PostgreSQL
 development headers in-place as well as [PGXS][4] (which should be made
@@ -168,7 +182,7 @@ available with installing the development package).
 make
 ```
 
-# Executing Tests
+## Executing Tests
 
 Some basic tests are included by making use of `pg_regress` which can be run with:
 
@@ -191,7 +205,7 @@ sudo -u postgres make REGRESS_PORT=5433 installcheck
 ```
 
 
-# Installation
+## Installation
 
 This also requires [PGXS][4] as it figures out where to find the installation:
 
