@@ -15,7 +15,7 @@ DATA = $(EXTENSION)--0.1.sql
 # pg_regress settings
 REGRESS_PORT := 5432
 REGRESS = $(EXTENSION)
-REGRESS_OPTS = --load-extension=$(EXTENSION) --port=$(REGRESS_PORT)
+REGRESS_OPTS = --load-extension=$(EXTENSION) --port=$(REGRESS_PORT) --outputdir=regress-$(REGRESS_PORT)
 
 # Use PGXS for installation
 # See: https://www.postgresql.org/docs/current/extend-pgxs.html
