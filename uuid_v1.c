@@ -33,14 +33,16 @@
 
 PG_MODULE_MAGIC;
 
+#define PG_UUID_OFFSET_EPOCH INT64CONST(122192928000000000)
+
 /*
  * The time offset between the UUID timestamp and the PostgreSQL epoch in
  * microsecond precision.
  *
  * This constant is the result of the following expression:
- * `122192928000000000 / 10 + ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY * USECS_PER_SEC)`
+ * `PG_UUID_OFFSET_EPOCH / 10 + ((POSTGRES_EPOCH_JDATE - UNIX_EPOCH_JDATE) * SECS_PER_DAY * USECS_PER_SEC)`
  */
-#define PG_UUID_OFFSET              INT64CONST(13165977600000000)
+#define PG_UUID_OFFSET INT64CONST(13165977600000000)
 
 /* sortsupport for uuid */
 typedef struct
@@ -65,11 +67,14 @@ static int64 uuid_timestamp_int(const pg_uuid_t *uuid);
 static int16 uuid_clockseq(const pg_uuid_t *uuid);
 static const unsigned char* uuid_node(const pg_uuid_t *uuid);
 
+static float8 uuid_v1_epoch_internal(const pg_uuid_v1 *uuid);
+
 PG_FUNCTION_INFO_V1(uuid_v1_in);
 PG_FUNCTION_INFO_V1(uuid_v1_out);
 PG_FUNCTION_INFO_V1(uuid_v1_recv);
 PG_FUNCTION_INFO_V1(uuid_v1_send);
 
+PG_FUNCTION_INFO_V1(uuid_v1_epoch);
 PG_FUNCTION_INFO_V1(uuid_v1_timestamp);
 PG_FUNCTION_INFO_V1(uuid_v1_node);
 PG_FUNCTION_INFO_V1(uuid_v1_clockseq);
@@ -395,6 +400,8 @@ pg_uuid_t*
 uuid_v1_to_std(const pg_uuid_v1 *uuid)
 {
 	pg_uuid_t *std;
+	uint8 offset = 0;
+	uint8 size;
 	uint32 i;
 	uint16 s;
 
@@ -402,22 +409,28 @@ uuid_v1_to_std(const pg_uuid_v1 *uuid)
 
 	/* write time_low in network byte order */
 	i = pg_hton32((uint32) (uuid->timestamp & 0x00000000FFFFFFFF));
-	memcpy(((int*) std->data), &i, 4);
+	size = sizeof(uint32);
+	memcpy(std->data, &i, size);
+	offset += size;
 
 	/* write time_mid in network byte order */
 	s = pg_hton16((uint16) ((uuid->timestamp & 0x0000FFFF00000000) >> 32));
-	memcpy(((int*) std->data) + 4, &s, 2);
+	size = sizeof(uint16);
+	memcpy(std->data + offset, &s, size);
+	offset += size;
 
 	/* write version and time_high in network byte order */
-	s = pg_hton16((uint16) ((uuid->timestamp & 0x0FFF000000000000) >> 48)) | 0x1000;
-	memcpy(((int*) std->data) + 6, &s, 2);
+	s = pg_hton16((uint16) (((uuid->timestamp & 0x0FFF000000000000) >> 48) | 0x1000));
+	memcpy(std->data + offset, &s, size);
+	offset += size;
 
 	/* write variant and clock sequence in network byte order */
-	s = pg_hton16((uint16) (uuid->clock_seq & 0x3FFF)) | 0x8000;
-	memcpy(((int*) std->data) + 8, &s, 2);
+	s = pg_hton16((uint16) (uuid->clock_seq | 0x8000));
+	memcpy(std->data + offset, &s, size);
+	offset += size;
 
 	/* write node value as is */
-	memcpy(((int*) std->data) + 10, uuid->node, UUID_NODE_LEN);
+	memcpy(std->data + offset, uuid->node, UUID_NODE_LEN);
 
 	return std;
 }
@@ -428,6 +441,7 @@ uuid_timestamp_int(const pg_uuid_t *uuid)
 	/* UUID timestamp is encoded in network byte order */
 	int64 timestamp = pg_ntoh64(*(int64 *) uuid->data);
 
+	/* unshuffle the UUID timestamp */
 	timestamp = (
 			((timestamp << 48) & 0x0FFF000000000000) |
 			((timestamp << 16) & 0x0000FFFF00000000) |
@@ -439,7 +453,7 @@ uuid_timestamp_int(const pg_uuid_t *uuid)
 int16
 uuid_clockseq(const pg_uuid_t *uuid)
 {
-	return pg_ntoh16((((int16) uuid->data[8]) & 0x3F << 8) | ((int16) uuid->data[9]));
+	return ((uuid->data[8] << 8) + uuid->data[9]) & 0x3FFF;
 }
 
 const unsigned char*
@@ -451,6 +465,33 @@ uuid_node(const pg_uuid_t *uuid)
 	src += 10;
 
 	return src;
+}
+
+float8
+uuid_v1_epoch_internal(const pg_uuid_v1 *uuid)
+{
+	int64 timestamp = (uuid->timestamp - PG_UUID_OFFSET_EPOCH) / 10;
+	return (float8) timestamp / 1000000.0;
+}
+
+Datum
+uuid_v1_epoch(PG_FUNCTION_ARGS)
+{
+	float8 result;
+	pg_uuid_v1 *uuid = PG_GETARG_UUIDV1_P(0);
+
+	if (PG_ARGISNULL(0))
+		PG_RETURN_NULL();
+
+	result = uuid_v1_epoch_internal(uuid);
+
+	/* Recheck in arithmetic produces something just out of range */
+	if (result < 0.0)
+		ereport(ERROR,
+			(errcode(ERRCODE_DATETIME_VALUE_OUT_OF_RANGE),
+			errmsg("timestamp out of range")));
+
+	PG_RETURN_FLOAT8(result);
 }
 
 /*

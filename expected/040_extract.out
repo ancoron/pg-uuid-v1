@@ -1,0 +1,67 @@
+SET timezone TO 'Africa/Nairobi';
+-- extract timestamp
+WITH test_data (uuid, ts) AS (
+    SELECT t.uuid::uuid_v1, uuid_v1_get_timestamp(t.uuid::uuid_v1)
+    FROM (
+        VALUES
+            ('edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3'),
+            ('4938f30e-8449-11e9-ae2b-e03f49467033')
+    ) AS t (uuid)
+)
+SELECT
+    to_char(ts, 'IYYY-MM-DD"T"HH24:MI:SS.USOF') AS "iso_timestamp",
+    extract(epoch from ts) AS "epoch",
+    ts AS "timestamp"
+FROM test_data;
+         iso_timestamp         |       epoch       |              timestamp              
+-------------------------------+-------------------+-------------------------------------
+ 2018-02-26T02:09:28.098840+03 |  1519600168.09884 | Mon Feb 26 02:09:28.09884 2018 EAT
+ 2019-06-01T11:43:10.745883+03 | 1559378590.745883 | Sat Jun 01 11:43:10.745883 2019 EAT
+(2 rows)
+
+-- extract clock sequence
+WITH test_data (uuid, clock_seq) AS (
+    SELECT t.uuid::uuid_v1, uuid_v1_get_clockseq(t.uuid::uuid_v1)
+    FROM (
+        VALUES
+            ('edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3'),
+            ('4938f30e-8449-11e9-ae2b-e03f49467033'),
+            ('e856f430-f950-11eb-adf0-e03f49f7f8f3'),
+            ('e856f430-f950-11eb-bfff-e03f49f7f8f3'),
+            ('e856f430-f950-11eb-8000-e03f49f7f8f3')
+    ) AS t (uuid)
+)
+SELECT uuid, to_hex(clock_seq::integer) AS "hex", clock_seq
+FROM test_data;
+                 uuid                 | hex  | clock_seq 
+--------------------------------------+------+-----------
+ edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3 | 18d9 |      6361
+ 4938f30e-8449-11e9-ae2b-e03f49467033 | 2e2b |     11819
+ e856f430-f950-11eb-adf0-e03f49f7f8f3 | 2df0 |     11760
+ e856f430-f950-11eb-bfff-e03f49f7f8f3 | 3fff |     16383
+ e856f430-f950-11eb-8000-e03f49f7f8f3 | 0    |         0
+(5 rows)
+
+-- extract node
+WITH test_data (uuid, node) AS (
+    SELECT t.uuid::uuid_v1, uuid_v1_get_node(t.uuid::uuid_v1)
+    FROM (
+        VALUES
+            ('edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3'),
+            ('4938f30e-8449-11e9-ae2b-e03f49467033'),
+            ('e856f430-f950-11eb-adf0-652aab8c3fac'),
+            ('e856f430-f950-11eb-adf0-dc399a95ccb0'),
+            ('e856f430-f950-11eb-adf0-8992b529b4ab')
+    ) AS t (uuid)
+)
+SELECT uuid, pg_typeof(node) AS "data type", encode(node, 'hex') AS "node (hex)"
+FROM test_data;
+                 uuid                 | data type |  node (hex)  
+--------------------------------------+-----------+--------------
+ edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3 | bytea     | e03f49f7f8f3
+ 4938f30e-8449-11e9-ae2b-e03f49467033 | bytea     | e03f49467033
+ e856f430-f950-11eb-adf0-652aab8c3fac | bytea     | 652aab8c3fac
+ e856f430-f950-11eb-adf0-dc399a95ccb0 | bytea     | dc399a95ccb0
+ e856f430-f950-11eb-adf0-8992b529b4ab | bytea     | 8992b529b4ab
+(5 rows)
+

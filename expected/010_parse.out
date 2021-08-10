@@ -1,0 +1,62 @@
+SET timezone TO 'Zulu';
+\x
+-- I/O
+SELECT 'edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3'::uuid_v1 AS ext;
+-[ RECORD 1 ]-----------------------------
+ext | edb4d8f0-1a80-11e8-98d9-e03f49f7f8f3
+
+SELECT '86D50AF6-F95C-11EB-ADF0-9D8BA2D04971'::uuid_v1 AS ext_upper;
+-[ RECORD 1 ]-----------------------------------
+ext_upper | 86d50af6-f95c-11eb-adf0-9d8ba2d04971
+
+SELECT '{ab16b0c2-f95c-11eb-adf0-9d8ba2d04971}'::uuid_v1 AS ext_braces;
+-[ RECORD 1 ]------------------------------------
+ext_braces | ab16b0c2-f95c-11eb-adf0-9d8ba2d04971
+
+SELECT 'b367f704f95c11ebadf09d8ba2d04971'::uuid_v1 AS ext_nosep;
+-[ RECORD 1 ]-----------------------------------
+ext_nosep | b367f704-f95c-11eb-adf0-9d8ba2d04971
+
+SELECT '{bfe86f04f95c11ebadf09d8ba2d04971}'::uuid_v1 AS ext_nosep_braces;
+-[ RECORD 1 ]----+-------------------------------------
+ext_nosep_braces | bfe86f04-f95c-11eb-adf0-9d8ba2d04971
+
+SELECT '.~([ 0082ZR56baPf95d_11eb/adf0 9d8ba2___d04971 ])~.'::uuid_v1 AS ext_skip_garbage;
+-[ RECORD 1 ]----+-------------------------------------
+ext_skip_garbage | 008256ba-f95d-11eb-adf0-9d8ba2d04971
+
+-- ...don't accept garbage...
+SELECT 'd1b1c622-f95c-11eb-adf0-9d8_a2d04971'::uuid_v1 AS fail;
+ERROR:  invalid input syntax for type uuid_v1: "d1b1c622-f95c-11eb-adf0-9d8_a2d04971"
+LINE 1: SELECT 'd1b1c622-f95c-11eb-adf0-9d8_a2d04971'::uuid_v1 AS fa...
+               ^
+-- ...don't accept different versions...
+SELECT '87c771ce-bc95-3114-ae59-c0e26acf8e81'::uuid_v1 AS ver_3;
+ERROR:  invalid version for type uuid_v1: "87c771ce-bc95-3114-ae59-c0e26acf8e81"
+LINE 1: SELECT '87c771ce-bc95-3114-ae59-c0e26acf8e81'::uuid_v1 AS ve...
+               ^
+SELECT '22859369-3a4f-49ef-8264-1aaf0a953299'::uuid_v1 AS ver_4;
+ERROR:  invalid version for type uuid_v1: "22859369-3a4f-49ef-8264-1aaf0a953299"
+LINE 1: SELECT '22859369-3a4f-49ef-8264-1aaf0a953299'::uuid_v1 AS ve...
+               ^
+SELECT 'c9aec822-6992-5c93-b34a-33cc0e952b5e'::uuid_v1 AS ver_5;
+ERROR:  invalid version for type uuid_v1: "c9aec822-6992-5c93-b34a-33cc0e952b5e"
+LINE 1: SELECT 'c9aec822-6992-5c93-b34a-33cc0e952b5e'::uuid_v1 AS ve...
+               ^
+SELECT '00000000-0000-0000-0000-000000000000'::uuid_v1 AS nil;
+ERROR:  invalid version for type uuid_v1: "00000000-0000-0000-0000-000000000000"
+LINE 1: SELECT '00000000-0000-0000-0000-000000000000'::uuid_v1 AS ni...
+               ^
+-- ...don't accept different variants...
+SELECT 'edb4d8f0-1a80-11e8-78d9-e03f49f7f8f3'::uuid_v1 AS var_ncs;
+ERROR:  invalid variant for type uuid_v1: "edb4d8f0-1a80-11e8-78d9-e03f49f7f8f3"
+LINE 1: SELECT 'edb4d8f0-1a80-11e8-78d9-e03f49f7f8f3'::uuid_v1 AS va...
+               ^
+SELECT 'edb4d8f0-1a80-11e8-d8d9-e03f49f7f8f3'::uuid_v1 AS var_ms;
+ERROR:  invalid variant for type uuid_v1: "edb4d8f0-1a80-11e8-d8d9-e03f49f7f8f3"
+LINE 1: SELECT 'edb4d8f0-1a80-11e8-d8d9-e03f49f7f8f3'::uuid_v1 AS va...
+               ^
+SELECT 'edb4d8f0-1a80-11e8-f8d9-e03f49f7f8f3'::uuid_v1 AS var_future;
+ERROR:  invalid variant for type uuid_v1: "edb4d8f0-1a80-11e8-f8d9-e03f49f7f8f3"
+LINE 1: SELECT 'edb4d8f0-1a80-11e8-f8d9-e03f49f7f8f3'::uuid_v1 AS va...
+               ^
