@@ -11,7 +11,7 @@ WORKDIR /srv/build
 
 # 1.3 install build-time dependencies
 RUN apt-get update \
-    && apt-get install -q -y coreutils wget build-essential llvm postgresql-server-dev-${PG_MAJOR} \
+    && apt-get install -q -y coreutils wget build-essential llvm postgresql-server-dev-${PG_MAJOR}
 
 # 1.4 download the configured release (see EXT_VERSION variable)
 RUN wget -q -O ${EXT_REPO_NAME}.tar.gz "https://github.com/ancoron/${EXT_REPO_NAME}/archive/refs/tags/v${EXT_VERSION}.tar.gz" \
@@ -37,5 +37,10 @@ RUN llvm-lto -thinlto -thinlto-action=thinlink -o ${EXT_NAME}.index.bc ${EXT_NAM
 # 2. create the final runtime stage
 FROM postgres:13-buster
 
-# 2.1 copy all binaries and other files into the standard location
+# 2.1 define environment variable for the build
+ARG EXT_NAME=uuid_v1
+ARG EXT_REPO_NAME=pg-uuid-v1
+ARG EXT_VERSION=0.1
+
+# 2.2 copy all binaries and other files into the standard location
 COPY --from=builder /srv/build/${EXT_REPO_NAME}-${EXT_VERSION}/dist/ /usr/
